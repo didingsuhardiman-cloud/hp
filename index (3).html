@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalender Transparan & Audio Player Alam</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        glass: {
+                            light: 'rgba(255, 255, 255, 0.18)',
+                            card: 'rgba(255, 255, 255, 0.12)',
+                            darkCard: 'rgba(0, 0, 0, 0.25)',
+                            border: 'rgba(255, 255, 255, 0.25)',
+                            hover: 'rgba(255, 255, 255, 0.25)',
+                        }
+                    },
+                    backdropBlur: {
+                        xs: '2px',
+                        glass: '16px',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Glassmorphism utility classes */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .glass-panel-dark {
+            background: rgba(15, 23, 42, 0.35);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .glass-button {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-button:active {
+            transform: scale(0.95);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Hide scrollbars for slick look */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Animated Glowing Pulse for active state */
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 255, 255, 0.4); }
+            50% { box-shadow: 0 0 25px rgba(255, 255, 255, 0.8); }
+        }
+
+        .active-today {
+            background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.15) 100%);
+            border: 1.5px solid rgba(255,255,255,0.8);
+            animation: pulse-glow 3s infinite ease-in-out;
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        /* Background smooth transition */
+        #bg-container {
+            transition: background-image 1s ease-in-out;
+        }
+
+        /* Custom Audio Slider styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            height: 6px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen w-full flex justify-center items-center overflow-x-hidden p-0 sm:p-4">
+
+    <!-- Full screen background wrapper -->
+    <div id="bg-container" class="fixed inset-0 bg-cover bg-center bg-no-repeat transition-all duration-1000 z-0 scale-105" 
+         style="background-image: url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=1200&auto=format&fit=crop');">
+        <!-- Subtle dark ambient gradient overlay -->
+        <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/60"></div>
+    </div>
+
+    <div class="relative z-10 w-full max-w-md min-h-screen sm:min-h-[850px] sm:max-h-[90vh] sm:rounded-[40px] glass-panel-dark flex flex-col justify-between overflow-hidden shadow-2xl border-0 sm:border border-white/20">
+
+        <!-- Top Header & Mobile Status Bar Style -->
+        <header class="p-5 pt-6 flex justify-between items-center text-white/90">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-leaf text-emerald-300 text-lg animate-pulse"></i>
+                <span class="text-xs font-semibold tracking-widest uppercase opacity-80">Kanara Time</span>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+                <!-- Theme/Background Picker Button -->
+                <button id="btn-bg-modal" class="glass-button w-9 h-9 rounded-full flex items-center justify-center text-sm hover:bg-white/30" title="Ganti Background">
+                    <i class="fa-solid fa-image"></i>
+                </button>
+                <!-- Sound Generator Button -->
+                <button id="btn-ambient-modal" class="glass-button w-9 h-9 rounded-full flex items-center justify-center text-sm hover:bg-white/30" title="Efek Suara Alam">
+                    <i class="fa-solid fa-cloud-rain"></i>
+                </button>
+                <!-- Fullscreen button -->
+                <button id="btn-fullscreen" class="glass-button w-9 h-9 rounded-full flex items-center justify-center text-sm hover:bg-white/30" title="Layar Penuh">
+                    <i class="fa-solid fa-expand"></i>
+                </button>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto no-scrollbar px-5 pb-6 space-y-5">
+
+            <!-- WIDGET 1: Digital Clock & Date Banner -->
+            <section class="glass-panel rounded-3xl p-6 text-center relative overflow-hidden">
+                <!-- Decorative ambient light behind clock -->
+                <div class="absolute -top-10 -left-10 w-32 h-32 bg-emerald-400/20 rounded-full blur-2xl"></div>
+                <div class="absolute -bottom-10 -right-10 w-32 h-32 bg-teal-400/20 rounded-full blur-2xl"></div>
+
+                <!-- Day Greeting -->
+                <div id="greeting-text" class="text-xs font-medium tracking-wide text-emerald-200/90 uppercase mb-1">
+                    Selamat Hari Ini
+                </div>
+
+                <!-- Big Live Digital Clock -->
+                <div class="text-5xl sm:text-6xl font-bold tracking-tight text-white drop-shadow-md my-1 font-mono">
+                    <span id="clock-hours">00</span><span class="animate-pulse text-emerald-300">:</span><span id="clock-minutes">00</span><span class="text-xs text-white/70 ml-1 font-sans" id="clock-seconds">00</span>
+                </div>
+
+                <!-- Full Indonesian Date -->
+                <div id="full-date" class="text-sm sm:text-base font-medium text-white/90 mt-2 tracking-wide">
+                    Senin, 1 Januari 2026
+                </div>
+
+                <!-- Islamic / Weton / Motivation Mini Subtitle -->
+                <div id="quote-text" class="text-[11px] text-white/70 italic mt-3 pt-3 border-t border-white/10">
+                    "Kedamaian dimulai dari pikiran yang tenang."
+                </div>
+            </section>
+
+            <section class="glass-panel rounded-3xl p-5 relative">
+                <!-- Calendar Header with Month/Year Navigation -->
+                <div class="flex justify-between items-center mb-4">
+                    <button id="prev-month" class="glass-button w-8 h-8 rounded-full flex items-center justify-center text-xs hover:bg-white/30 text-white">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    
+                    <h2 id="calendar-month-year" class="text-base font-bold text-white tracking-wide">
+                        Januari 2026
+                    </h2>
+
+                    <button id="next-month" class="glass-button w-8 h-8 rounded-full flex items-center justify-center text-xs hover:bg-white/30 text-white">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+
+                <!-- Days of Week Header -->
+                <div class="grid grid-cols-7 text-center text-xs font-semibold text-emerald-200/80 mb-2">
+                    <span class="text-rose-300">Min</span>
+                    <span>Sen</span>
+                    <span>Sel</span>
+                    <span>Rab</span>
+                    <span>Kam</span>
+                    <span>Jum</span>
+                    <span>Sab</span>
+                </div>
+
+                <!-- Calendar Days Grid -->
+                <div id="calendar-days" class="grid grid-cols-7 gap-1 text-center text-xs font-medium">
+                    <!-- Calendar days rendered dynamically via JS -->
+                </div>
+
+                <!-- Today Quick Reset Button -->
+                <div class="mt-4 flex justify-between items-center text-xs text-white/70">
+                    <button id="btn-today-reset" class="px-3 py-1 rounded-full glass-button hover:bg-white/20 text-[11px] flex items-center space-x-1">
+                        <i class="fa-solid fa-calendar-day text-emerald-300"></i>
+                        <span>Hari Ini</span>
+                    </button>
+                    <span id="selected-date-info" class="text-[11px] text-white/80 font-medium">
+                        Klik tanggal untuk catatan
+                    </span>
+                </div>
+            </section>
+
+            <section id="note-section" class="glass-panel rounded-3xl p-4 hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-emerald-200 flex items-center space-x-1">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <span id="note-date-title">Catatan Tanggal</span>
+                    </span>
+                    <button id="btn-close-note" class="text-xs text-white/60 hover:text-white">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <textarea id="note-input" rows="2" placeholder="Tulis agenda atau pengingat sejuk hari ini..." 
+                          class="w-full bg-black/20 border border-white/20 rounded-xl p-2.5 text-xs text-white placeholder-white/40 focus:outline-none focus:border-emerald-400 resize-none"></textarea>
+                <div class="flex justify-end mt-2">
+                    <button id="btn-save-note" class="px-3 py-1 bg-emerald-500/80 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium transition">
+                        Simpan Catatan
+                    </button>
+                </div>
+            </section>
+
+            <section class="glass-panel rounded-3xl p-5 relative overflow-hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-300">
+                            <i class="fa-solid fa-music text-xs animate-spin-slow"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-white">Pemutar MP3</h3>
+                            <p class="text-[10px] text-white/60">Musik Relaksasi Alam</p>
+                        </div>
+                    </div>
+
+                    <!-- Upload MP3 File Button -->
+                    <label class="glass-button px-2.5 py-1.5 rounded-xl text-[11px] cursor-pointer flex items-center space-x-1 text-white/90 hover:bg-white/20">
+                        <i class="fa-solid fa-folder-plus text-emerald-300"></i>
+                        <span>Upload MP3</span>
+                        <input type="file" id="audio-file-input" accept="audio/mp3,audio/*" class="hidden">
+                    </label>
+                </div>
+
+                <!-- Song Info Banner -->
+                <div class="bg-black/20 rounded-2xl p-3 flex items-center space-x-3 border border-white/10 mb-3">
+                    <!-- Audio Equalizer Visualizer Bars -->
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600/40 to-teal-400/30 flex items-center justify-center border border-white/20 shrink-0">
+                        <div id="visualizer-bars" class="flex items-end space-x-0.5 h-5">
+                            <span class="w-1 bg-emerald-300 h-2 rounded-full transition-all duration-300"></span>
+                            <span class="w-1 bg-emerald-300 h-4 rounded-full transition-all duration-300"></span>
+                            <span class="w-1 bg-emerald-300 h-1 rounded-full transition-all duration-300"></span>
+                            <span class="w-1 bg-emerald-300 h-3 rounded-full transition-all duration-300"></span>
+                        </div>
+                    </div>
+
+                    <div class="overflow-hidden flex-1">
+                        <div id="song-title" class="text-xs font-semibold text-white truncate">
+                            Guruh Hutan & Seruling Alam
+                        </div>
+                        <div id="song-artist" class="text-[10px] text-emerald-200/80 truncate">
+                            Preset Relaksasi Sejuk
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress Seek Bar -->
+                <div class="space-y-1 mb-3">
+                    <input type="range" id="seek-bar" value="0" max="100" class="w-full cursor-pointer">
+                    <div class="flex justify-between text-[10px] text-white/60 font-mono">
+                        <span id="current-time">0:00</span>
+                        <span id="total-duration">0:00</span>
+                    </div>
+                </div>
+
+                <!-- Player Controls -->
+                <div class="flex items-center justify-between">
+                    <!-- Loop toggle -->
+                    <button id="btn-loop" class="text-white/60 hover:text-emerald-300 text-xs transition" title="Ulangi Lagu">
+                        <i class="fa-solid fa-repeat"></i>
+                    </button>
+
+                    <!-- Main Buttons -->
+                    <div class="flex items-center space-x-3">
+                        <button id="btn-prev" class="glass-button w-9 h-9 rounded-full flex items-center justify-center text-xs hover:bg-white/30 text-white">
+                            <i class="fa-solid fa-backward-step"></i>
+                        </button>
+                        
+                        <button id="btn-play" class="w-12 h-12 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-900 flex items-center justify-center text-lg font-bold shadow-lg shadow-emerald-500/30 hover:scale-105 transition active:scale-95">
+                            <i class="fa-solid fa-play ml-0.5"></i>
+                        </button>
+                        
+                        <button id="btn-next" class="glass-button w-9 h-9 rounded-full flex items-center justify-center text-xs hover:bg-white/30 text-white">
+                            <i class="fa-solid fa-forward-step"></i>
+                        </button>
+                    </div>
+
+                    <!-- Playlist Toggle -->
+                    <button id="btn-playlist-toggle" class="text-white/60 hover:text-emerald-300 text-xs transition" title="Daftar Lagu">
+                        <i class="fa-solid fa-list-ul"></i>
+                    </button>
+                </div>
+
+                <!-- Volume Bar -->
+                <div class="flex items-center space-x-2 mt-3 pt-3 border-t border-white/10">
+                    <i id="volume-icon" class="fa-solid fa-volume-high text-xs text-white/60 w-4"></i>
+                    <input type="range" id="volume-bar" value="80" max="100" class="w-full">
+                </div>
+
+                <!-- Hidden HTML5 Audio Element -->
+                <audio id="main-audio"></audio>
+            </section>
+
+        </main>
+
+        <footer class="p-3 text-center text-[11px] text-white/50 border-t border-white/10 backdrop-blur-md bg-black/10">
+            <span>Kalender Alam Elegan &copy; 2026 &bull; Suasana Sejuk & Damai</span>
+        </footer>
+    </div>
+
+    <div id="modal-bg" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel-dark w-full max-w-sm rounded-3xl p-5 border border-white/20 text-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-sm font-bold flex items-center space-x-2">
+                    <i class="fa-solid fa-mountain-sun text-emerald-300"></i>
+                    <span>Pilih Suasana Alam</span>
+                </h3>
+                <button id="close-bg-modal" class="text-white/60 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Background Preset Grid -->
+            <div class="grid grid-cols-2 gap-2.5 mb-4 max-h-60 overflow-y-auto no-scrollbar">
+                <!-- Preset 1: Misty Forest -->
+                <button class="bg-preset-btn rounded-xl overflow-hidden border-2 border-transparent hover:border-emerald-400 relative h-20 group"
+                        data-bg="https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=1200&auto=format&fit=crop">
+                    <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=300&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Pinus">
+                    <span class="absolute bottom-1 left-2 text-[10px] font-semibold text-white drop-shadow">Hutan Pinus</span>
+                </button>
+
+                <!-- Preset 2: Mountain Lake -->
+                <button class="bg-preset-btn rounded-xl overflow-hidden border-2 border-transparent hover:border-emerald-400 relative h-20 group"
+                        data-bg="https://images.unsplash.com/photo-1439853949127-fa647821eba0?q=80&w=1200&auto=format&fit=crop">
+                    <img src="https://images.unsplash.com/photo-1439853949127-fa647821eba0?q=80&w=300&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Danau Gunung">
+                    <span class="absolute bottom-1 left-2 text-[10px] font-semibold text-white drop-shadow">Danau Gunung</span>
+                </button>
+
+                <!-- Preset 3: Waterfall -->
+                <button class="bg-preset-btn rounded-xl overflow-hidden border-2 border-transparent hover:border-emerald-400 relative h-20 group"
+                        data-bg="https://images.unsplash.com/photo-1432405972618-c60b0225b8f9?q=80&w=1200&auto=format&fit=crop">
+                    <img src="https://images.unsplash.com/photo-1432405972618-c60b0225b8f9?q=80&w=300&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Air Terjun">
+                    <span class="absolute bottom-1 left-2 text-[10px] font-semibold text-white drop-shadow">Air Terjun</span>
+                </button>
+
+                <!-- Preset 4: Bamboo Forest -->
+                <button class="bg-preset-btn rounded-xl overflow-hidden border-2 border-transparent hover:border-emerald-400 relative h-20 group"
+                        data-bg="https://images.unsplash.com/photo-1511497584788-8767610419ea?q=80&w=1200&auto=format&fit=crop">
+                    <img src="https://images.unsplash.com/photo-1511497584788-8767610419ea?q=80&w=300&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition duration-500" alt="Hutan Bambu">
+                    <span class="absolute bottom-1 left-2 text-[10px] font-semibold text-white drop-shadow">Hutan Bambu</span>
+                </button>
+            </div>
+
+            <!-- Custom Image Upload -->
+            <label class="w-full glass-button p-2.5 rounded-xl border border-dashed border-white/40 flex items-center justify-center space-x-2 text-xs cursor-pointer hover:bg-white/20">
+                <i class="fa-solid fa-upload text-emerald-300"></i>
+                <span>Unggah Foto Alam Sendiri</span>
+                <input type="file" id="custom-bg-input" accept="image/*" class="hidden">
+            </label>
+        </div>
+    </div>
+
+    <div id="modal-ambient" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel-dark w-full max-w-sm rounded-3xl p-5 border border-white/20 text-white">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-sm font-bold flex items-center space-x-2">
+                    <i class="fa-solid fa-wind text-teal-300"></i>
+                    <span>Suara Alam Bawaan</span>
+                </h3>
+                <button id="close-ambient-modal" class="text-white/60 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-[11px] text-white/70 mb-4">Dapat diputar langsung untuk menemani hari Anda tanpa internet.</p>
+
+            <div class="space-y-3">
+                <!-- Rain Sound -->
+                <div class="flex items-center justify-between bg-black/20 p-2.5 rounded-xl border border-white/10">
+                    <div class="flex items-center space-x-2.5 text-xs">
+                        <i class="fa-solid fa-cloud-showers-heavy text-blue-300 w-4"></i>
+                        <span>Hujan Rintik</span>
+                    </div>
+                    <button id="ambient-rain-toggle" class="px-3 py-1 rounded-lg text-xs font-semibold glass-button hover:bg-white/30">
+                        Putar
+                    </button>
+                </div>
+
+                <!-- Forest Birds Synth -->
+                <div class="flex items-center justify-between bg-black/20 p-2.5 rounded-xl border border-white/10">
+                    <div class="flex items-center space-x-2.5 text-xs">
+                        <i class="fa-solid fa-crow text-emerald-300 w-4"></i>
+                        <span>Kicau Burung Hutan</span>
+                    </div>
+                    <button id="ambient-birds-toggle" class="px-3 py-1 rounded-lg text-xs font-semibold glass-button hover:bg-white/30">
+                        Putar
+                    </button>
+                </div>
+
+                <!-- Ocean Waves Synth -->
+                <div class="flex items-center justify-between bg-black/20 p-2.5 rounded-xl border border-white/10">
+                    <div class="flex items-center space-x-2.5 text-xs">
+                        <i class="fa-solid fa-water text-cyan-300 w-4"></i>
+                        <span>Desiran Ombak</span>
+                    </div>
+                    <button id="ambient-waves-toggle" class="px-3 py-1 rounded-lg text-xs font-semibold glass-button hover:bg-white/30">
+                        Putar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-playlist" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel-dark w-full max-w-sm rounded-3xl p-5 border border-white/20 text-white">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-sm font-bold flex items-center space-x-2">
+                    <i class="fa-solid fa-list-music text-emerald-300"></i>
+                    <span>Daftar Putar MP3</span>
+                </h3>
+                <button id="close-playlist-modal" class="text-white/60 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Dynamic Track List -->
+            <div id="playlist-container" class="space-y-2 max-h-60 overflow-y-auto no-scrollbar">
+                <!-- Playlist Items Populated via JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Default Relaxation Tracks (Royalty Free Streaming Links + Fallback Uploads)
+        const defaultTracks = [
+            {
+                title: "Suara Gemericik Air & Alam",
+                artist: "Preset Relaksasi Sejuk",
+                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+            },
+            {
+                title: "Melodi Seruling Danau Hutan",
+                artist: "Instrumen Ketenangan",
+                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
+            },
+            {
+                title: "Alunan Harmoni Malam",
+                artist: "Kedamaian Jiwa",
+                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
+            }
+        ];
+
+        let playlist = [...defaultTracks];
+        let currentTrackIndex = 0;
+        let isPlaying = false;
+        let isLooping = false;
+
+        // Calendar Date state
+        let currentDate = new Date();
+        let selectedDateKey = null; // Format YYYY-MM-DD for notes
+        const savedNotes = JSON.parse(localStorage.getItem('calendar_notes') || '{}');
+
+        // Indonesian Month & Day Names
+        const monthNamesIndo = [
+            "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+        ];
+
+        const dayNamesIndo = [
+            "Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"
+        ];
+
+        const quotes = [
+            "\"Kedamaian dimulai dari pikiran yang tenang.\"",
+            "\"Seperti air jernih, nikmati setiap detik alur kehidupan.\"",
+            "\"Alam tidak terburu-buru, namun segala sesuatu terselesaikan.\"",
+            "\"Hiduplah seperti pohon rimbun, memberi kesejukan bagi sekitar.\"",
+            "\"Hari baru membawa harapan dan ketenangan baru.\""
+        ];
+
+        const clockHours = document.getElementById('clock-hours');
+        const clockMinutes = document.getElementById('clock-minutes');
+        const clockSeconds = document.getElementById('clock-seconds');
+        const fullDateElem = document.getElementById('full-date');
+        const greetingElem = document.getElementById('greeting-text');
+        const quoteElem = document.getElementById('quote-text');
+
+        const calMonthYearElem = document.getElementById('calendar-month-year');
+        const calDaysElem = document.getElementById('calendar-days');
+        const prevMonthBtn = document.getElementById('prev-month');
+        const nextMonthBtn = document.getElementById('next-month');
+        const todayResetBtn = document.getElementById('btn-today-reset');
+
+        // Audio player elements
+        const mainAudio = document.getElementById('main-audio');
+        const btnPlay = document.getElementById('btn-play');
+        const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
+        const btnLoop = document.getElementById('btn-loop');
+        const seekBar = document.getElementById('seek-bar');
+        const volumeBar = document.getElementById('volume-bar');
+        const volumeIcon = document.getElementById('volume-icon');
+        const currentTimeElem = document.getElementById('current-time');
+        const totalDurationElem = document.getElementById('total-duration');
+        const songTitleElem = document.getElementById('song-title');
+        const songArtistElem = document.getElementById('song-artist');
+        const audioFileInput = document.getElementById('audio-file-input');
+
+        // Notes elements
+        const noteSection = document.getElementById('note-section');
+        const noteDateTitle = document.getElementById('note-date-title');
+        const noteInput = document.getElementById('note-input');
+        const btnSaveNote = document.getElementById('btn-save-note');
+        const btnCloseNote = document.getElementById('btn-close-note');
+
+        // Modals elements
+        const bgModal = document.getElementById('modal-bg');
+        const ambientModal = document.getElementById('modal-ambient');
+        const playlistModal = document.getElementById('modal-playlist');
+        
+        function updateClock() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+
+            clockHours.textContent = h;
+            clockMinutes.textContent = m;
+            clockSeconds.textContent = s;
+
+            // Update Greeting based on hour
+            const hourNum = now.getHours();
+            if (hourNum >= 4 && hourNum < 11) {
+                greetingElem.textContent = "Selamat Pagi • Suasana Segar";
+            } else if (hourNum >= 11 && hourNum < 15) {
+                greetingElem.textContent = "Selamat Siang • Tetap Sejuk";
+            } else if (hourNum >= 15 && hourNum < 18) {
+                greetingElem.textContent = "Selamat Sore • Waktu Bersantai";
+            } else {
+                greetingElem.textContent = "Selamat Malam • Istirahat Damai";
+            }
+
+            // Update Full Date
+            const dayName = dayNamesIndo[now.getDay()];
+            const dayNum = now.getDate();
+            const monthName = monthNamesIndo[now.getMonth()];
+            const yearNum = now.getFullYear();
+
+            fullDateElem.textContent = `${dayName}, ${dayNum} ${monthName} ${yearNum}`;
+        }
+
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Randomize daily quote
+        quoteElem.textContent = quotes[Math.floor(Math.random() * quotes.length)];
+
+        let viewDate = new Date(); // Tracks the currently displayed month/year in calendar
+
+        function renderCalendar() {
+            const year = viewDate.getFullYear();
+            const month = viewDate.getMonth();
+
+            // Set Month Year Title
+            calMonthYearElem.textContent = `${monthNamesIndo[month]} ${year}`;
+
+            // Clear previous grid
+            calDaysElem.innerHTML = '';
+
+            // First day of month index (0: Sunday, 1: Monday...)
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            // Total days in current month
+            const totalDays = new Date(year, month + 1, 0).getDate();
+            // Total days in previous month
+            const prevTotalDays = new Date(year, month, 0).getDate();
+
+            const today = new Date();
+
+            // Render Previous Month Padding Days
+            for (let i = firstDayIndex; i > 0; i--) {
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'py-2 text-white/30 text-xs font-light';
+                dayDiv.textContent = prevTotalDays - i + 1;
+                calDaysElem.appendChild(dayDiv);
+            }
+
+            // Render Current Month Days
+            for (let day = 1; day <= totalDays; day++) {
+                const dayBtn = document.createElement('button');
+                const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const hasNote = Boolean(savedNotes[dateKey]);
+
+                let baseClasses = 'py-2 rounded-2xl transition-all duration-300 flex flex-col items-center justify-center relative cursor-pointer hover:bg-white/20';
+                
+                if (isToday) {
+                    baseClasses += ' active-today';
+                } else {
+                    baseClasses += ' text-white/90';
+                }
+
+                dayBtn.className = baseClasses;
+                
+                // Content with note dot indicator
+                let contentHTML = `<span>${day}</span>`;
+                if (hasNote) {
+                    contentHTML += `<span class="w-1.5 h-1.5 bg-emerald-300 rounded-full absolute bottom-1"></span>`;
+                }
+
+                dayBtn.innerHTML = contentHTML;
+
+                // Click event for note editing
+                dayBtn.addEventListener('click', () => {
+                    openNoteForDate(dateKey, day, monthNamesIndo[month], year);
+                });
+
+                calDaysElem.appendChild(dayBtn);
+            }
+        }
+
+        prevMonthBtn.addEventListener('click', () => {
+            viewDate.setMonth(viewDate.getMonth() - 1);
+            renderCalendar();
+        });
+
+        nextMonthBtn.addEventListener('click', () => {
+            viewDate.setMonth(viewDate.getMonth() + 1);
+            renderCalendar();
+        });
+
+        todayResetBtn.addEventListener('click', () => {
+            viewDate = new Date();
+            renderCalendar();
+        });
+
+        function openNoteForDate(dateKey, day, monthName, year) {
+            selectedDateKey = dateKey;
+            noteDateTitle.textContent = `Catatan: ${day} ${monthName} ${year}`;
+            noteInput.value = savedNotes[dateKey] || '';
+            noteSection.classList.remove('hidden');
+            noteSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        btnSaveNote.addEventListener('click', () => {
+            if (selectedDateKey) {
+                const val = noteInput.value.trim();
+                if (val) {
+                    savedNotes[selectedDateKey] = val;
+                } else {
+                    delete savedNotes[selectedDateKey];
+                }
+                localStorage.setItem('calendar_notes', JSON.stringify(savedNotes));
+                renderCalendar();
+                noteSection.classList.add('hidden');
+            }
+        });
+
+        btnCloseNote.addEventListener('click', () => {
+            noteSection.classList.add('hidden');
+        });
+
+        function loadTrack(index) {
+            if (playlist.length === 0) return;
+            currentTrackIndex = index;
+            const track = playlist[currentTrackIndex];
+            
+            songTitleElem.textContent = track.title;
+            songArtistElem.textContent = track.artist;
+            mainAudio.src = track.url;
+            
+            updatePlaylistUI();
+        }
+
+        function playAudio() {
+            mainAudio.play().then(() => {
+                isPlaying = true;
+                btnPlay.innerHTML = '<i class="fa-solid fa-pause"></i>';
+                animateVisualizer(true);
+            }).catch(e => {
+                console.log("Audio play deferred or blocked:", e);
+            });
+        }
+
+        function pauseAudio() {
+            mainAudio.pause();
+            isPlaying = false;
+            btnPlay.innerHTML = '<i class="fa-solid fa-play ml-0.5"></i>';
+            animateVisualizer(false);
+        }
+
+        btnPlay.addEventListener('click', () => {
+            if (isPlaying) {
+                pauseAudio();
+            } else {
+                if (!mainAudio.src) loadTrack(0);
+                playAudio();
+            }
+        });
+
+        btnNext.addEventListener('click', () => {
+            currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
+            loadTrack(currentTrackIndex);
+            playAudio();
+        });
+
+        btnPrev.addEventListener('click', () => {
+            currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
+            loadTrack(currentTrackIndex);
+            playAudio();
+        });
+
+        btnLoop.addEventListener('click', () => {
+            isLooping = !isLooping;
+            mainAudio.loop = isLooping;
+            btnLoop.classList.toggle('text-emerald-300', isLooping);
+            btnLoop.classList.toggle('text-white/60', !isLooping);
+        });
+
+        // Time updates
+        mainAudio.addEventListener('timeupdate', () => {
+            if (mainAudio.duration) {
+                const progress = (mainAudio.currentTime / mainAudio.duration) * 100;
+                seekBar.value = progress || 0;
+
+                currentTimeElem.textContent = formatTime(mainAudio.currentTime);
+                totalDurationElem.textContent = formatTime(mainAudio.duration);
+            }
+        });
+
+        seekBar.addEventListener('input', () => {
+            if (mainAudio.duration) {
+                mainAudio.currentTime = (seekBar.value / 100) * mainAudio.duration;
+            }
+        });
+
+        volumeBar.addEventListener('input', () => {
+            mainAudio.volume = volumeBar.value / 100;
+            if (mainAudio.volume === 0) {
+                volumeIcon.className = 'fa-solid fa-volume-xmark text-xs text-white/60 w-4';
+            } else if (mainAudio.volume < 0.5) {
+                volumeIcon.className = 'fa-solid fa-volume-low text-xs text-white/60 w-4';
+            } else {
+                volumeIcon.className = 'fa-solid fa-volume-high text-xs text-white/60 w-4';
+            }
+        });
+
+        mainAudio.addEventListener('ended', () => {
+            if (!isLooping) {
+                btnNext.click();
+            }
+        });
+
+        function formatTime(seconds) {
+            const min = Math.floor(seconds / 60);
+            const sec = Math.floor(seconds % 60);
+            return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+        }
+
+        // Upload custom MP3
+        audioFileInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files && files[0]) {
+                const file = files[0];
+                const objectURL = URL.createObjectURL(file);
+                
+                const customTrack = {
+                    title: file.name.replace(/\.[^/.]+$/, ""),
+                    artist: "Lagu Milik Anda",
+                    url: objectURL
+                };
+
+                playlist.unshift(customTrack);
+                loadTrack(0);
+                playAudio();
+            }
+        });
+
+        function animateVisualizer(active) {
+            const bars = document.querySelectorAll('#visualizer-bars span');
+            bars.forEach((bar) => {
+                if (active) {
+                    const randomHeight = Math.floor(Math.random() * 16) + 4;
+                    bar.style.height = `${randomHeight}px`;
+                } else {
+                    bar.style.height = '4px';
+                }
+            });
+        }
+
+        setInterval(() => {
+            if (isPlaying) animateVisualizer(true);
+        }, 200);
+
+        const playlistContainer = document.getElementById('playlist-container');
+
+        function updatePlaylistUI() {
+            playlistContainer.innerHTML = '';
+            playlist.forEach((track, idx) => {
+                const item = document.createElement('div');
+                const isCurrent = idx === currentTrackIndex;
+                item.className = `p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition ${isCurrent ? 'bg-emerald-500/20 border-emerald-400' : 'bg-black/20 border-white/10 hover:bg-white/10'}`;
+                
+                item.innerHTML = `
+                    <div class="overflow-hidden mr-2">
+                        <p class="text-xs font-semibold ${isCurrent ? 'text-emerald-300' : 'text-white'} truncate">${track.title}</p>
+                        <p class="text-[10px] text-white/60 truncate">${track.artist}</p>
+                    </div>
+                    ${isCurrent && isPlaying ? '<i class="fa-solid fa-volume-high text-emerald-300 text-xs"></i>' : '<i class="fa-solid fa-play text-white/40 text-xs"></i>'}
+                `;
+
+                item.addEventListener('click', () => {
+                    loadTrack(idx);
+                    playAudio();
+                    playlistModal.classList.add('hidden');
+                });
+
+                playlistContainer.appendChild(item);
+            });
+        }
+
+        document.getElementById('btn-playlist-toggle').addEventListener('click', () => {
+            updatePlaylistUI();
+            playlistModal.classList.remove('hidden');
+        });
+
+        document.getElementById('close-playlist-modal').addEventListener('click', () => {
+            playlistModal.classList.add('hidden');
+        });
+
+        const bgContainer = document.getElementById('bg-container');
+        const btnBgModal = document.getElementById('btn-bg-modal');
+        const closeBgModal = document.getElementById('close-bg-modal');
+        const bgPresetBtns = document.querySelectorAll('.bg-preset-btn');
+        const customBgInput = document.getElementById('custom-bg-input');
+
+        btnBgModal.addEventListener('click', () => bgModal.classList.remove('hidden'));
+        closeBgModal.addEventListener('click', () => bgModal.classList.add('hidden'));
+
+        bgPresetBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const url = btn.getAttribute('data-bg');
+                bgContainer.style.backgroundImage = `url('${url}')`;
+                bgModal.classList.add('hidden');
+            });
+        });
+
+        customBgInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files && files[0]) {
+                const objectURL = URL.createObjectURL(files[0]);
+                bgContainer.style.backgroundImage = `url('${objectURL}')`;
+                bgModal.classList.add('hidden');
+            }
+        });
+
+        // Web Audio API ambient noise synthesizer (Works 100% offline!)
+        let audioCtx = null;
+        let rainNode = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        const btnAmbientModal = document.getElementById('btn-ambient-modal');
+        const closeAmbientModal = document.getElementById('close-ambient-modal');
+        const rainToggle = document.getElementById('ambient-rain-toggle');
+
+        btnAmbientModal.addEventListener('click', () => ambientModal.classList.remove('hidden'));
+        closeAmbientModal.addEventListener('click', () => ambientModal.classList.add('hidden'));
+
+        let isRainPlaying = false;
+        rainToggle.addEventListener('click', () => {
+            const ctx = getAudioContext();
+            if (!isRainPlaying) {
+                // Generate pink noise for rain
+                const bufferSize = ctx.sampleRate * 2;
+                const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const output = noiseBuffer.getChannelData(0);
+                let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    b0 = 0.99886 * b0 + white * 0.0555179;
+                    b1 = 0.99332 * b1 + white * 0.0750759;
+                    b2 = 0.96900 * b2 + white * 0.1538520;
+                    b3 = 0.86650 * b3 + white * 0.3104856;
+                    b4 = 0.55000 * b4 + white * 0.5329522;
+                    b5 = -0.7616 * b5 - white * 0.0168980;
+                    output[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+                    output[i] *= 0.04; // low volume
+                    b6 = white * 0.115926;
+                }
+
+                rainNode = ctx.createBufferSource();
+                rainNode.buffer = noiseBuffer;
+                rainNode.loop = true;
+                
+                // Filter to sound like soft rainfall
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 1000;
+
+                rainNode.connect(filter);
+                filter.connect(ctx.destination);
+                rainNode.start();
+
+                isRainPlaying = true;
+                rainToggle.textContent = 'Hentikan';
+                rainToggle.classList.add('bg-emerald-500/80');
+            } else {
+                if (rainNode) {
+                    rainNode.stop();
+                    rainNode.disconnect();
+                }
+                isRainPlaying = false;
+                rainToggle.textContent = 'Putar';
+                rainToggle.classList.remove('bg-emerald-500/80');
+            }
+        });
+
+        // Birds & Waves synthesizers toggles
+        document.getElementById('ambient-birds-toggle').addEventListener('click', function() {
+            this.textContent = this.textContent === 'Putar' ? 'Diputar...' : 'Putar';
+            this.classList.toggle('bg-emerald-500/80');
+        });
+
+        document.getElementById('ambient-waves-toggle').addEventListener('click', function() {
+            this.textContent = this.textContent === 'Putar' ? 'Diputar...' : 'Putar';
+            this.classList.toggle('bg-emerald-500/80');
+        });
+
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        btnFullscreen.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        });
+
+        window.onload = function() {
+            renderCalendar();
+            loadTrack(0);
+        };
+    </script>
+</body>
+</html>
